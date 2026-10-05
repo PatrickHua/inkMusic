@@ -13,8 +13,8 @@ android {
         // MediaStore RELATIVE_PATH/IS_PENDING (download storage) need API 29.
         minSdk = 29
         targetSdk = 35
-        versionCode = 16
-        versionName = "2.0.0"
+        versionCode = 17
+        versionName = "2.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
