@@ -26,11 +26,14 @@ class LrcLibClient(
         // Untagged files often carry "Artist - Title" (or "Title - Artist") as the title.
         val guesses = buildList {
             add(cleanTitle to artist)
-            if (artist.isBlank() && " - " in cleanTitle) {
-                val left = cleanTitle.substringBefore(" - ").trim()
-                val right = cleanTitle.substringAfter(" - ").trim()
-                add(right to left)
-                add(left to right)
+            val separator = listOf(" - ", "-", "–", "_").firstOrNull { it in cleanTitle }
+            if (artist.isBlank() && separator != null) {
+                val left = cleanTitle.substringBefore(separator).trim()
+                val right = cleanTitle.substringAfter(separator).trim()
+                if (left.isNotEmpty() && right.isNotEmpty()) {
+                    add(right to left)
+                    add(left to right)
+                }
             }
         }
 
@@ -52,13 +55,15 @@ class LrcLibClient(
 
         // Record which entry matched so a wrong match can be traced and removed.
         val source = "$SOURCE #${match.optLong("id")}: ${match.optString("artistName")} - ${match.optString("trackName")}"
+        val synced = match.optString("syncedLyrics").takeIf { it.isNotBlank() && it != "null" }
+        val plain = match.optString("plainLyrics").takeIf { it.isNotBlank() && it != "null" }
+        val text = synced ?: plain
+        // Words win over the instrumental flag, which LRCLIB sometimes sets on sung songs.
+        if (text != null) return Lyrics.parseLrc(text).copy(source = source)
         if (match.optBoolean("instrumental")) {
             return Lyrics(emptyList(), synced = false, instrumental = true, source = source)
         }
-        val synced = match.optString("syncedLyrics").takeIf { it.isNotBlank() && it != "null" }
-        val plain = match.optString("plainLyrics").takeIf { it.isNotBlank() && it != "null" }
-        val text = synced ?: plain ?: return null
-        return Lyrics.parseLrc(text).copy(source = source)
+        return null
     }
 
     private fun best(
@@ -71,14 +76,19 @@ class LrcLibClient(
         candidates
             .filter { isGoodMatch(it, title, artist, durationMs) }
             .filter { !exactTitle || normalize(it.optString("trackName")) == normalize(title) }
-            // Prefer synced lyrics, then the closest duration.
+            // Prefer entries with words (some songs are wrongly flagged instrumental),
+            // then synced lyrics, then the closest duration.
             .sortedWith(
                 compareBy<JSONObject>(
-                    { it.optString("syncedLyrics").isBlank() || it.optString("syncedLyrics") == "null" },
+                    { !hasText(it, "syncedLyrics") && !hasText(it, "plainLyrics") },
+                    { !hasText(it, "syncedLyrics") },
                     { durationGap(it, durationMs) },
                 ),
             )
             .firstOrNull()
+
+    private fun hasText(candidate: JSONObject, key: String): Boolean =
+        candidate.optString(key).let { it.isNotBlank() && it != "null" }
 
     private fun search(vararg params: Pair<String, String>): List<JSONObject> {
         val url = "https://lrclib.net/api/search".toHttpUrl().newBuilder().apply {
