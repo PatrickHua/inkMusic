@@ -29,6 +29,7 @@
             android:permission="android.permission.DUMP">
             <intent-filter>
                 <action android:name="io.github.patrickhua.inkmusic.RESCAN" />
+                <action android:name="io.github.patrickhua.inkmusic.FETCH_LYRICS" />
             </intent-filter>
         </receiver>
 

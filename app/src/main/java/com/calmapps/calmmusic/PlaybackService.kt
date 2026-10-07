@@ -1,6 +1,7 @@
 package com.calmapps.calmmusic
 
 import android.app.NotificationChannel
+import com.calmapps.calmmusic.lyrics.LyricsPrefetcher
 import com.calmapps.calmmusic.playback.ListeningLog
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -35,6 +36,7 @@ import java.util.concurrent.TimeUnit
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var listeningLog: ListeningLog? = null
+    private var lyricsPrefetcher: LyricsPrefetcher? = null
 
     companion object {
         private const val NOTIFICATION_ID = 1001
@@ -88,6 +90,7 @@ class PlaybackService : MediaSessionService() {
         })
 
         listeningLog = ListeningLog(this).also { it.attach(player) }
+        lyricsPrefetcher = LyricsPrefetcher(this).also { player.addListener(it) }
 
         val sessionActivityIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -195,6 +198,8 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         listeningLog?.detach()
         listeningLog = null
+        lyricsPrefetcher?.release()
+        lyricsPrefetcher = null
         mediaSession?.run {
             player.release()
             release()

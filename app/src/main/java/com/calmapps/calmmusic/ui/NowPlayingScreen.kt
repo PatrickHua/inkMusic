@@ -1,5 +1,8 @@
 package com.calmapps.calmmusic.ui
 
+import androidx.compose.material.icons.outlined.Lyrics
+import com.calmapps.calmmusic.lyrics.Lyrics
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -76,6 +79,10 @@ fun NowPlayingScreen(
     isInLibrary: Boolean = false,
     sourceType: String? = null,
     streamResolverLabel: String? = null,
+    lyrics: Lyrics? = null,
+    isLyricsLoading: Boolean = false,
+    showLyrics: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -112,7 +119,37 @@ fun NowPlayingScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Column(
+        if (showLyrics && !isVideo) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 4.dp),
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = artist,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                LyricsView(
+                    lyrics = lyrics,
+                    isLoading = isLyricsLoading,
+                    positionMs = currentPosition,
+                    onSeek = onSeek,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -298,6 +335,28 @@ fun NowPlayingScreen(
                     imageVector = Icons.Outlined.PlaylistAdd,
                     contentDescription = "Add to playlist",
                 )
+            }
+
+            if (!isVideo) {
+                IconButton(onClick = onToggleLyrics) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lyrics,
+                            contentDescription = if (showLyrics) "Hide lyrics" else "Show lyrics",
+                        )
+                        if (showLyrics) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primary,
+                                        shape = CircleShape,
+                                    ),
+                            )
+                        }
+                    }
+                }
             }
 
             IconButton(onClick = onRepeatClick) {

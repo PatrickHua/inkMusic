@@ -8,6 +8,9 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import com.calmapps.calmmusic.data.InkStorage
+import com.calmapps.calmmusic.lyrics.Lyrics
+import com.calmapps.calmmusic.lyrics.LyricsQuery
+import com.calmapps.calmmusic.lyrics.LyricsStore
 import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -291,6 +294,7 @@ fun MonoMusic(app: MonoMusic) {
     var isPlaybackPlaying = playbackState.isPlaybackPlaying
 
     var showNowPlaying by remember { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     var songToAddToPlaylist by remember { mutableStateOf<SongUiModel?>(null) }
     var pendingAddToNewPlaylistSong by remember { mutableStateOf<SongUiModel?>(null) }
@@ -1323,6 +1327,28 @@ fun MonoMusic(app: MonoMusic) {
                 showNowPlaying = false
             }
 
+            // Lyrics come from files next to the song, or are fetched and saved there.
+            var lyrics by remember(song.id) { mutableStateOf<Lyrics?>(null) }
+            var isLyricsLoading by remember(song.id) { mutableStateOf(true) }
+            val lyricsDurationMs = displayDuration.takeIf { it > 0 }
+            LaunchedEffect(song.id, lyricsDurationMs != null) {
+                // LRCLIB matches on duration; wait for it unless the song never reports one.
+                if (lyricsDurationMs == null) kotlinx.coroutines.delay(3_000)
+                lyrics = LyricsStore.load(
+                    appContext,
+                    LyricsQuery(
+                        songId = song.id,
+                        title = song.title,
+                        artist = song.artist,
+                        album = song.album,
+                        durationMs = lyricsDurationMs,
+                        audioFile = LyricsQuery.fileOf(song.audioUri),
+                    ),
+                    fetch = true,
+                )
+                isLyricsLoading = false
+            }
+
             NowPlayingScreen(
                 title = song.title,
                 artist = song.artist.ifBlank { if (song.sourceType == "LOCAL_FILE" || song.sourceType == "YOUTUBE_DOWNLOAD") "Local file" else "" },
@@ -1415,6 +1441,10 @@ fun MonoMusic(app: MonoMusic) {
                 isInLibrary = isInLibrary,
                 sourceType = song.sourceType,
                 streamResolverLabel = if (song.sourceType == "YOUTUBE") streamResolverLabel else null,
+                lyrics = lyrics,
+                isLyricsLoading = isLyricsLoading,
+                showLyrics = showLyrics,
+                onToggleLyrics = { showLyrics = !showLyrics },
             )
         }
 

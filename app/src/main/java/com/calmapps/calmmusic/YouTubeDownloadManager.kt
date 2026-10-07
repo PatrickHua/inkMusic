@@ -357,6 +357,22 @@ internal suspend fun performYouTubeDownloadInternal(
             saveToDownloads(context, finishedFile, fileName)
         } ?: throw IllegalStateException("Could not save the song to storage")
 
+        // Downloaded songs get their lyrics right away, saved next to the file.
+        withContext(Dispatchers.IO) {
+            com.calmapps.calmmusic.lyrics.LyricsStore.load(
+                context,
+                com.calmapps.calmmusic.lyrics.LyricsQuery(
+                    songId = videoId,
+                    title = song.title,
+                    artist = song.artist,
+                    album = song.album,
+                    durationMs = song.durationMillis,
+                    audioFile = com.calmapps.calmmusic.lyrics.LyricsQuery.fileOf(contentUri.toString()),
+                ),
+                fetch = true,
+            )
+        }
+
         onProgress(1f)
 
         withContext(Dispatchers.IO) {

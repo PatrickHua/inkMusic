@@ -16,11 +16,13 @@ Everything lives in `Music/inkMusic/` on the SD card (or phone storage if there 
 Music/inkMusic/
   songs/          your music, in any folder layout; .lrc lyrics sit next to each song
   playlists/      one .m3u8 per playlist
+  lyrics/         lyrics for streamed songs (no audio file to sit next to)
   history/        listening log, one YYYY-MM.jsonl per month
   library.json    snapshot of the library and playlists, rewritten after every scan
 ```
 
 - **Playlists** are standard `.m3u8` files and the files win: edit or add one on a computer, rescan, and the app follows; change a playlist in the app and its file is rewritten. Entries may be paths (absolute, or relative to the playlist, the `inkMusic` folder, or `songs/`) or YouTube Music links. Files written by the app add `#INKMUSIC-*` lines with ids so playlists survive renamed songs.
+- **Lyrics** are `.lrc` files next to each song (`Song Name.mp3` → `Song Name.lrc`), so you can add them from a computer along with the music. A song without one gets lyrics on first play, from tags embedded in the file or from [LRCLIB](https://lrclib.net), saved next to it for offline use; streamed songs keep theirs in `inkMusic/lyrics/`, and downloads get theirs when the download finishes. Songs LRCLIB has nothing for are listed in `lyrics/.not-found` and retried after two weeks.
 - **History** has one JSON line per event: `start` when a song begins and `end` with `result` (`completed`, `skipped`, `stopped`), `listenedMs`, and `durationMs`.
 - **library.json** lists every song (`id`, `title`, `artist`, `album`, `durationMs`, `path` relative to `inkMusic/`, …) and every playlist as resolved (`songIds` in order). Treat it as read-only.
 
@@ -35,6 +37,10 @@ adb shell appops set io.github.patrickhua.inkmusic MANAGE_EXTERNAL_STORAGE allow
 ```sh
 # Re-read songs and playlists, rewrite library.json (prints file counts)
 adb shell am broadcast -a io.github.patrickhua.inkmusic.RESCAN \
+  -n io.github.patrickhua.inkmusic/com.calmapps.calmmusic.AgentCommandReceiver
+
+# Fetch lyrics for every song that has none (runs in the background, progress in logcat)
+adb shell am broadcast -a io.github.patrickhua.inkmusic.FETCH_LYRICS \
   -n io.github.patrickhua.inkmusic/com.calmapps.calmmusic.AgentCommandReceiver
 
 # Playback goes through the standard media session
