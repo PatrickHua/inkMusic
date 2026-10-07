@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -46,8 +47,12 @@ fun LyricsView(
         }
 
         else -> {
+            // Blank timed lines mark pauses; on a small screen they only waste rows.
+            val shown = remember(lyrics) {
+                if (lyrics.synced) lyrics.copy(lines = lyrics.lines.filter { it.text.isNotBlank() }) else lyrics
+            }
             val listState = rememberLazyListState()
-            val current = lyrics.lineIndexAt(positionMs)
+            val current = shown.lineIndexAt(positionMs)
 
             LaunchedEffect(current) {
                 if (current < 0) return@LaunchedEffect
@@ -61,7 +66,7 @@ fun LyricsView(
             }
 
             LazyColumn(state = listState, modifier = modifier.fillMaxSize()) {
-                itemsIndexed(lyrics.lines) { index, line ->
+                itemsIndexed(shown.lines) { index, line ->
                     val time = line.timeMs
                     Text(
                         text = line.text.ifBlank { " " },

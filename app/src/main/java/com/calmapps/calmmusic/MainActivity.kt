@@ -668,7 +668,7 @@ fun MonoMusic(app: MonoMusic) {
     }
 
     // The view model syncs once at startup; reload whenever any sync finishes,
-    // including ones started from a computer (see AgentCommandReceiver).
+    // including ones started from a computer (see AgentProvider).
     val libraryVersion by (appContext as MonoMusic).libraryVersion.collectAsState()
     LaunchedEffect(libraryVersion) {
         if (libraryVersion == 0) return@LaunchedEffect

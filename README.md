@@ -35,19 +35,18 @@ adb shell appops set io.github.patrickhua.inkmusic MANAGE_EXTERNAL_STORAGE allow
 ## Controlling it from a computer
 
 ```sh
-# Re-read songs and playlists, rewrite library.json (prints file counts)
-adb shell am broadcast -a io.github.patrickhua.inkmusic.RESCAN \
-  -n io.github.patrickhua.inkmusic/com.calmapps.calmmusic.AgentCommandReceiver
+# Re-read songs and playlists, rewrite library.json; prints file counts when done
+adb shell content call --uri content://io.github.patrickhua.inkmusic.agent --method RESCAN
 
-# Fetch lyrics for every song that has none (runs in the background, progress in logcat)
-adb shell am broadcast -a io.github.patrickhua.inkmusic.FETCH_LYRICS \
-  -n io.github.patrickhua.inkmusic/com.calmapps.calmmusic.AgentCommandReceiver
+# Fetch lyrics for every song that has none (background); call STATUS for progress
+adb shell content call --uri content://io.github.patrickhua.inkmusic.agent --method FETCH_LYRICS
+adb shell content call --uri content://io.github.patrickhua.inkmusic.agent --method STATUS
 
 # Playback goes through the standard media session
 adb shell cmd media_session dispatch play-pause   # also: next, previous
 ```
 
-Commands are accepted only from adb or the system (the receiver requires the `DUMP` permission).
+Commands are accepted only from adb or the system (the provider requires the `DUMP` permission). They use a content provider rather than broadcasts because some MediaTek builds silently drop broadcasts to apps.
 
 ## Building
 

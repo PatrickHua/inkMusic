@@ -60,10 +60,12 @@ class ListeningLog(private val context: Context) : Player.Listener {
     }
 
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-        val result = when (reason) {
-            Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> "completed"
-            Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> "completed"
-            Player.MEDIA_ITEM_TRANSITION_REASON_SEEK -> "skipped"
+        val result = when {
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> "completed"
+            reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> "completed"
+            // Left mid-way for another song: next/previous, or tapping a song,
+            // which replaces the queue.
+            mediaItem != null -> "skipped"
             else -> "stopped"
         }
         // By now the player reports the new item, so the old position is only known

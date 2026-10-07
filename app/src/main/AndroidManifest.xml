@@ -22,16 +22,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MonoMusic">
 
-        <!-- Commands from a computer over adb; DUMP keeps other apps out. -->
-        <receiver
-            android:name=".AgentCommandReceiver"
+        <!-- Commands from a computer over adb (`adb shell content call`); DUMP keeps other apps out. -->
+        <provider
+            android:name=".AgentProvider"
+            android:authorities="io.github.patrickhua.inkmusic.agent"
             android:exported="true"
-            android:permission="android.permission.DUMP">
-            <intent-filter>
-                <action android:name="io.github.patrickhua.inkmusic.RESCAN" />
-                <action android:name="io.github.patrickhua.inkmusic.FETCH_LYRICS" />
-            </intent-filter>
-        </receiver>
+            android:permission="android.permission.DUMP" />
 
         <service
             android:name=".PlaybackService"
