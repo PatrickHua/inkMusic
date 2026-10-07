@@ -22,11 +22,24 @@ android {
         }
     }
 
+    // Release signing comes from the environment (see scripts/install-release.sh);
+    // without it, release builds fall back to the debug key so anyone can build.
+    val releaseKeystore = System.getenv("INKMUSIC_KEYSTORE")?.let { file(it) }
+    signingConfigs {
+        if (releaseKeystore != null && releaseKeystore.exists()) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("INKMUSIC_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("INKMUSIC_KEY_ALIAS") ?: "inkmusic"
+                keyPassword = System.getenv("INKMUSIC_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Debug-signed so the release APK is directly sideloadable
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
