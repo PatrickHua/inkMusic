@@ -354,16 +354,13 @@ internal suspend fun performYouTubeDownloadInternal(
 
         val finishedFile = tmpFile ?: return false
         val contentUri = withContext(Dispatchers.IO) {
-            com.calmapps.calmmusic.data.MediaStoreSongs.insert(context, finishedFile, fileName)
+            saveToDownloads(context, finishedFile, fileName)
         } ?: throw IllegalStateException("Could not save the song to storage")
 
         onProgress(1f)
 
         withContext(Dispatchers.IO) {
             try {
-                val settings = app.settingsManager
-                if (!settings.includeLocalMusic.value) settings.setIncludeLocalMusic(true)
-
                 val songDao = MonoMusicDatabase.getDatabase(app).songDao()
                 val effectiveAlbumArtist = albumArtist?.takeIf { it.isNotBlank() }
                 val artistKey = Song.artistKeyOf(song.artist, effectiveAlbumArtist)
@@ -397,3 +394,21 @@ internal suspend fun performYouTubeDownloadInternal(
         tmpFile?.delete()
     }
 }
+
+/**
+ * Copies a finished download into `inkMusic/songs/Downloads`, returning its file uri.
+ * A song already saved under the same name gets a numbered name instead.
+ */
+private fun saveToDownloads(context: android.content.Context, source: File, fileName: String): android.net.Uri? =
+    try {
+        val dir = com.calmapps.calmmusic.data.InkStorage.downloadsDir(context).apply { mkdirs() }
+        val base = fileName.substringBeforeLast('.')
+        val extension = fileName.substringAfterLast('.', "m4a")
+        var target = File(dir, fileName)
+        var n = 2
+        while (target.exists()) target = File(dir, "$base ($n).$extension").also { n++ }
+        source.copyTo(target)
+        android.net.Uri.fromFile(target)
+    } catch (_: Exception) {
+        null
+    }

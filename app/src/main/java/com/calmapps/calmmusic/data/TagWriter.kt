@@ -9,9 +9,9 @@ import java.io.File
 import java.io.FileOutputStream
 
 /**
- * Rewrites tags on a MediaStore/SAF file. jaudiotagger needs a real file, so
- * the audio round-trips through cache. Best effort: some MP4 layouts cannot
- * be rewritten by jaudiotagger and fail silently.
+ * Rewrites tags on a song. Plain files are edited in place; content uris
+ * round-trip through cache because jaudiotagger needs a real file. Best effort:
+ * some MP4 layouts cannot be rewritten by jaudiotagger and fail silently.
  */
 object TagWriter {
 
@@ -19,6 +19,13 @@ object TagWriter {
         val uriString = localUri ?: return
         try {
             val uri = Uri.parse(uriString)
+            if (uri.scheme == "file") {
+                TagOptionSingleton.getInstance().isAndroid = true
+                val audioFile = AudioFileIO.read(File(uri.path ?: return))
+                apply(audioFile.tagAndConvertOrCreateAndSetDefault)
+                audioFile.commit()
+                return
+            }
             val temp = File.createTempFile("tag_edit", ".m4a", context.cacheDir)
             try {
                 context.contentResolver.openInputStream(uri)?.use { input ->

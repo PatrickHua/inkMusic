@@ -4,12 +4,14 @@ import android.net.Uri
 import android.os.Environment
 import com.calmapps.calmmusic.MonoMusic
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Owns the library: syncing songs from disk (MediaStore downloads + SAF
- * folders) into the database and repairing legacy uri-keyed rows so ids stay
- * stable and playlists never break.
+ * Owns the library: syncing the inkMusic folders ([InkStorage]) into the
+ * database (songs, then playlist files), writing `library.json`, and repairing
+ * legacy uri-keyed rows so ids stay stable and playlists never break.
  */
 class LibraryRepository(
     private val app: MonoMusic,
@@ -27,19 +29,23 @@ class LibraryRepository(
 
     /**
      * Bring the database in line with disk. Streamed-only songs are untouched;
-     * local-backed songs are added, updated, re-linked, or pruned.
+     * local-backed songs are added, updated, re-linked, or pruned. Playlists are
+     * then mirrored from their files. Concurrent calls run one after another.
      */
     suspend fun sync(
-        includeLocal: Boolean,
-        folders: Set<String>,
         onProgress: suspend (processed: Int, total: Int) -> Unit = { _, _ -> },
     ): SyncStats = withContext(Dispatchers.IO) {
+        syncMutex.withLock { syncLocked(onProgress) }.also { app.notifyLibraryChanged() }
+    }
+
+    private suspend fun syncLocked(
+        onProgress: suspend (processed: Int, total: Int) -> Unit,
+    ): SyncStats {
         migrateAppDirDownloads()
 
         val existing = songDao.getAll()
         val scanned = LibraryScanner.scan(
             context = app,
-            folderUris = if (includeLocal) folders else emptySet(),
             existing = existing,
             onProgress = onProgress,
         )
@@ -81,7 +87,14 @@ class LibraryRepository(
             songDao.updateLocalCopy(song.id, null, null, null)
         }
 
-        SyncStats(
+        PlaylistFiles.importAll(app, songDao, playlistDao)
+        try {
+            LibrarySnapshot.write(app, songDao.getAll(), playlistDao)
+        } catch (_: Exception) {
+            // The snapshot is a convenience for computers; never fail a sync over it.
+        }
+
+        return SyncStats(
             totalFiles = scanned.size,
             addedOrUpdated = changed.size,
             removed = localOnly.size,
@@ -264,32 +277,32 @@ class LibraryRepository(
         }
 
     /**
-     * Move downloads out of the legacy app-specific dirs into MediaStore. Runs on
-     * every sync but is a no-op once the dirs are empty. Needs no permission:
-     * the app may read its own dirs and insert its own media freely.
+     * Move downloads left in the legacy app-specific dirs into `songs/Downloads`.
+     * Runs on every sync but is a no-op once the dirs are empty.
      */
     private fun migrateAppDirDownloads() {
         val appDirs = app.getExternalFilesDirs(Environment.DIRECTORY_MUSIC).filterNotNull()
-        // Keyed by name alone: inserting under a name MediaStore already tracks
-        // (even as a stale row) silently creates a "name (1)" twin.
-        val publishedSizeByName = MediaStoreSongs.queryAll(app)
-            .associate { it.displayName to it.sizeBytes }
-        for (dir in appDirs) {
-            val files = dir.listFiles()
+        val files = appDirs.flatMap { dir ->
+            dir.listFiles()
                 ?.filter { it.isFile && it.extension.lowercase() in LibraryScanner.AUDIO_EXTENSIONS }
                 .orEmpty()
-            for (file in files) {
-                when (publishedSizeByName[file.name]) {
-                    null -> {
-                        MediaStoreSongs.insert(app, file, file.name) ?: continue
-                        file.delete()
-                    }
-                    file.length() -> file.delete()
-                    // Same name, different content: leave the file rather than
-                    // risk a duplicate; a later sync retries once rows settle.
-                    else -> {}
-                }
+        }
+        if (files.isEmpty()) return
+        val target = InkStorage.downloadsDir(app).apply { mkdirs() }
+        for (file in files) {
+            val dest = java.io.File(target, file.name)
+            if (dest.exists()) {
+                if (dest.length() == file.length()) file.delete()
+                continue
+            }
+            if (!file.renameTo(dest)) {
+                file.copyTo(dest)
+                file.delete()
             }
         }
+    }
+
+    companion object {
+        private val syncMutex = Mutex()
     }
 }

@@ -7,12 +7,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Read music added by other apps (e.g. copied in from a computer); our own
-         downloads are inserted through MediaStore and need no permission. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <!-- Songs, playlists, and history live as plain files in Music/inkMusic; reading
+         files a computer or another app put there needs "All files access". -->
     <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <application
         android:name=".MonoMusic"
@@ -22,6 +21,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MonoMusic">
+
+        <!-- Commands from a computer over adb; DUMP keeps other apps out. -->
+        <receiver
+            android:name=".AgentCommandReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="io.github.patrickhua.inkmusic.RESCAN" />
+            </intent-filter>
+        </receiver>
 
         <service
             android:name=".PlaybackService"

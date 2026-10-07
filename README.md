@@ -1,16 +1,55 @@
-<img align="left" src="logo.svg" width="100" height="100" alt="MonoMusic Logo">
+<img align="left" src="logo.svg" width="100" height="100" alt="inkMusic logo">
 
 <br clear="all" />
 
-# MonoMusic
+# inkMusic
 
-A calm, E‑ink‑friendly music player that puts your attention and privacy first.
+A calm music player for E‑ink Android devices, built so your library can be managed from a computer.
 
-MonoMusic brings together your **local files** and **YouTube Music** search/streaming into one quiet, distraction‑free place to listen.
+inkMusic is a fork of [MonoMusic](https://github.com/berendsliedrecht/MonoMusic) by Berend Sliedrecht (itself derived from [CalmMusic](https://github.com/davidraywilson/CalmMusic)), licensed GPL‑3.0. It keeps MonoMusic's quiet interface and YouTube Music support and changes where your data lives: **everything is plain files you own**, and the app's database is only an index.
 
-"Let's make technology useful again."
+## Your data is files
 
-Originally forked from [davidraywilson/CalmMusic](https://github.com/davidraywilson/CalmMusic), but after a major core rework, it is no longer considered a fork.
+Everything lives in `Music/inkMusic/` on the SD card (or phone storage if there is none) and stays there if the app is removed:
+
+```
+Music/inkMusic/
+  songs/          your music, in any folder layout; .lrc lyrics sit next to each song
+  playlists/      one .m3u8 per playlist
+  history/        listening log, one YYYY-MM.jsonl per month
+  library.json    snapshot of the library and playlists, rewritten after every scan
+```
+
+- **Playlists** are standard `.m3u8` files and the files win: edit or add one on a computer, rescan, and the app follows; change a playlist in the app and its file is rewritten. Entries may be paths (absolute, or relative to the playlist, the `inkMusic` folder, or `songs/`) or YouTube Music links. Files written by the app add `#INKMUSIC-*` lines with ids so playlists survive renamed songs.
+- **History** has one JSON line per event: `start` when a song begins and `end` with `result` (`completed`, `skipped`, `stopped`), `listenedMs`, and `durationMs`.
+- **library.json** lists every song (`id`, `title`, `artist`, `album`, `durationMs`, `path` relative to `inkMusic/`, …) and every playlist as resolved (`songIds` in order). Treat it as read-only.
+
+inkMusic needs **All files access** to read files a computer put there. From a computer:
+
+```sh
+adb shell appops set io.github.patrickhua.inkmusic MANAGE_EXTERNAL_STORAGE allow
+```
+
+## Controlling it from a computer
+
+```sh
+# Re-read songs and playlists, rewrite library.json (prints file counts)
+adb shell am broadcast -a io.github.patrickhua.inkmusic.RESCAN \
+  -n io.github.patrickhua.inkmusic/com.calmapps.calmmusic.AgentCommandReceiver
+
+# Playback goes through the standard media session
+adb shell cmd media_session dispatch play-pause   # also: next, previous
+```
+
+Commands are accepted only from adb or the system (the receiver requires the `DUMP` permission).
+
+## Building
+
+Needs JDK 17 and the Android SDK (platform 35). `./gradlew assembleDebug` builds a debug APK. `scripts/install-release.sh` builds a release signed with the key in `~/.android-keys/inkmusic-release.jks` (password from the macOS Keychain item `inkmusic-keystore`) and installs it over adb; without the key, release builds fall back to debug signing.
+
+---
+
+## From MonoMusic
 
 ## Screenshots
 

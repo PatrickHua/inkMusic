@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.calmapps.calmmusic.data.MonoMusicDatabase
+import com.calmapps.calmmusic.data.PlaylistFiles
 import com.calmapps.calmmusic.data.PlaylistManager
 import com.calmapps.calmmusic.data.PlaylistTrackEntity
 import com.calmapps.calmmusic.ui.PlaylistUiModel
@@ -32,6 +33,15 @@ class PlaylistsViewModel(
     private val songDao by lazy { database.songDao() }
     private val playlistDao by lazy { database.playlistDao() }
     private val playlistManager: PlaylistManager by lazy { PlaylistManager(songDao, playlistDao) }
+
+    /** Playlist files are the source of truth; write every in-app change back to disk. */
+    private suspend fun saveToFile(playlistId: String) {
+        try {
+            PlaylistFiles.export(app, playlistDao, playlistId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     private val _playlists = MutableStateFlow<List<PlaylistUiModel>>(emptyList())
     val playlists: StateFlow<List<PlaylistUiModel>> = _playlists
@@ -85,6 +95,7 @@ class PlaylistsViewModel(
             songs.forEachIndexed { index, song ->
                 playlistDao.updateTrackPosition(playlistId, song.id, index)
             }
+            saveToFile(playlistId)
         }
     }
 
@@ -93,7 +104,7 @@ class PlaylistsViewModel(
         playlist: PlaylistUiModel,
     ): PlaylistManager.AddSongResult {
         return withContext(Dispatchers.IO) {
-            playlistManager.addSongToPlaylist(song, playlist.id)
+            playlistManager.addSongToPlaylist(song, playlist.id).also { saveToFile(playlist.id) }
         }
     }
 
@@ -125,6 +136,7 @@ class PlaylistsViewModel(
                     )
                 }
                 playlistDao.upsertTracks(tracks)
+                saveToFile(playlistId)
 
                 val newEntities = playlistDao.getSongsForPlaylist(playlistId)
                 AddSongsToPlaylistResult(
@@ -148,6 +160,7 @@ class PlaylistsViewModel(
                 playlistId = playlistId,
                 songIds = songIds.toList(),
             )
+            saveToFile(playlistId)
             val songs = playlistDao.getSongsForPlaylist(playlistId)
             songs.size
         }
@@ -189,6 +202,7 @@ class PlaylistsViewModel(
                 playlistDao.upsertTracks(listOf(track))
             }
 
+            saveToFile(playlistId)
             val updatedSongs = playlistDao.getSongsForPlaylist(playlistId)
             EditPlaylistResult(
                 playlistId = playlistId,
@@ -200,6 +214,7 @@ class PlaylistsViewModel(
     suspend fun deletePlaylists(playlistsToDelete: List<PlaylistUiModel>): List<PlaylistUiModel> {
         return withContext(Dispatchers.IO) {
             playlistsToDelete.forEach { playlist ->
+                PlaylistFiles.delete(app, playlist.id)
                 playlistDao.deleteTracksForPlaylist(playlist.id)
                 val entity = com.calmapps.calmmusic.data.PlaylistEntity(
                     id = playlist.id,

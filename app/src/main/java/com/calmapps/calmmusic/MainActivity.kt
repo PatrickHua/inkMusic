@@ -7,7 +7,8 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import com.calmapps.calmmusic.data.MediaStoreSongs
+import com.calmapps.calmmusic.data.InkStorage
+import android.net.Uri
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -189,16 +190,9 @@ fun MonoMusic(app: MonoMusic) {
         lastCompletedDownloadUUIDs = currentCompletedUUIDs
     }
 
-    val includeLocalMusicState = settingsManager.includeLocalMusic.collectAsState()
-    val localMusicFoldersState = settingsManager.localMusicFolders.collectAsState()
-    val includeLocalMusic = includeLocalMusicState.value
-    val localMusicFolders = localMusicFoldersState.value
     val completeAlbumsWithYouTubeState = settingsManager.completeAlbumsWithYouTube.collectAsState()
     val completeAlbumsWithYouTube = completeAlbumsWithYouTubeState.value
-    var hasStorageAccess by rememberSaveable { mutableStateOf(MediaStoreSongs.hasReadPermission(context)) }
-    val storagePermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted -> hasStorageAccess = granted }
+    var hasStorageAccess by rememberSaveable { mutableStateOf(InkStorage.hasAllFilesAccess()) }
     var hasCompletedPermissionsOnboarding by rememberSaveable {
         mutableStateOf(settingsManager.hasCompletedPermissionsOnboarding())
     }
@@ -206,7 +200,7 @@ fun MonoMusic(app: MonoMusic) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                hasStorageAccess = MediaStoreSongs.hasReadPermission(context)
+                hasStorageAccess = InkStorage.hasAllFilesAccess()
 
                 val intent = activity?.intent
                 val fromRadio = intent?.getBooleanExtra("FROM_RADIO_TUNER", false) ?: false
@@ -387,10 +381,7 @@ fun MonoMusic(app: MonoMusic) {
         }
     }
 
-    suspend fun resyncLocalLibrary(
-        includeLocal: Boolean,
-        folders: Set<String>,
-    ) {
+    suspend fun resyncLocalLibrary() {
         if (isRescanningLocal) return
         isRescanningLocal = true
         localScanProgress = 0f
@@ -403,8 +394,6 @@ fun MonoMusic(app: MonoMusic) {
         songsError = null
         try {
             val stats = viewModel.resyncLocalLibrary(
-                includeLocal = includeLocal,
-                folders = folders,
                 onScanProgress = { progress ->
                     localScanProgress = progress.coerceIn(0f, 1f)
                 },
@@ -650,12 +639,11 @@ fun MonoMusic(app: MonoMusic) {
         PermissionsOnboardingScreen(
             hasStorageAccess = hasStorageAccess,
             onRequestStorageAccessClick = {
-                storagePermissionLauncher.launch(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        Manifest.permission.READ_MEDIA_AUDIO
-                    } else {
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    },
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        Uri.parse("package:${context.packageName}"),
+                    ),
                 )
             },
             onContinueClick = {
@@ -675,9 +663,13 @@ fun MonoMusic(app: MonoMusic) {
         albumsError = null
     }
 
-    LaunchedEffect(includeLocalMusic, localMusicFolders) {
-        delay(500L)
-        resyncLocalLibrary(includeLocalMusic, localMusicFolders)
+    // The view model syncs once at startup; reload whenever any sync finishes,
+    // including ones started from a computer (see AgentCommandReceiver).
+    val libraryVersion by (appContext as MonoMusic).libraryVersion.collectAsState()
+    LaunchedEffect(libraryVersion) {
+        if (libraryVersion == 0) return@LaunchedEffect
+        viewModel.refreshLibraryFromDatabase()
+        libraryPlaylists = playlistsViewModel.refreshPlaylists()
     }
 
     val openStreamingSettings: () -> Unit = {
@@ -1244,18 +1236,18 @@ fun MonoMusic(app: MonoMusic) {
                     val context = LocalContext.current
                     val lifecycleOwner = LocalLifecycleOwner.current
 
-                    val folderPickerLauncher = rememberLauncherForActivityResult(
-                        contract = ActivityResultContracts.OpenDocumentTree(),
-                    ) { uri ->
-                        if (uri != null) {
-                            val flags =
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                            try {
-                                context.contentResolver.takePersistableUriPermission(uri, flags)
-                            } catch (_: SecurityException) {
+                    // Re-checked when returning from the system settings screen.
+                    var hasAllFilesAccess by remember { mutableStateOf(InkStorage.hasAllFilesAccess()) }
+                    DisposableEffect(lifecycleOwner) {
+                        val observer = LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                val granted = InkStorage.hasAllFilesAccess()
+                                if (granted && !hasAllFilesAccess) libraryScope.launch { resyncLocalLibrary() }
+                                hasAllFilesAccess = granted
                             }
-                            settingsManager.addLocalMusicFolder(uri.toString())
                         }
+                        lifecycleOwner.lifecycle.addObserver(observer)
+                        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                     }
 
                     SettingsScreen(
@@ -1265,20 +1257,19 @@ fun MonoMusic(app: MonoMusic) {
                         onCompleteAlbumsWithYouTubeChange = { enabled ->
                             settingsManager.setCompleteAlbumsWithYouTube(enabled)
                         },
-                        includeLocalMusic = includeLocalMusic,
-                        localFolders = localMusicFolders.toList(),
-                        onIncludeLocalMusicChange = { enabled ->
-                            settingsManager.setIncludeLocalMusic(enabled)
-                        },
-                        onAddFolderClick = {
-                            folderPickerLauncher.launch(null)
-                        },
-                        onRemoveFolderClick = { uri ->
-                            settingsManager.removeLocalMusicFolder(uri)
+                        musicFolderPath = InkStorage.primaryRoot(context).absolutePath,
+                        hasAllFilesAccess = hasAllFilesAccess,
+                        onGrantAllFilesAccessClick = {
+                            context.startActivity(
+                                Intent(
+                                    Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                                    Uri.parse("package:${context.packageName}"),
+                                ),
+                            )
                         },
                         onRescanLocalMusicClick = {
                             libraryScope.launch {
-                                resyncLocalLibrary(includeLocalMusic, localMusicFolders)
+                                resyncLocalLibrary()
                             }
                         },
                         isRescanningLocal = isRescanningLocal,

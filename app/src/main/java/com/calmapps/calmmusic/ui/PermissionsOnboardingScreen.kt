@@ -60,9 +60,9 @@ fun PermissionsOnboardingScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TextMMD(
-                    text = "Downloaded songs are saved to Music/MonoMusic on your SD card or phone " +
-                            "storage. Reading songs added there by other apps or a computer " +
-                            "requires the audio permission.",
+                    text = "Your songs, playlists, and listening history live in Music/inkMusic " +
+                            "on your SD card or phone storage, so they stay if the app is removed. " +
+                            "Reading files copied there from a computer requires \"All files access\".",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,

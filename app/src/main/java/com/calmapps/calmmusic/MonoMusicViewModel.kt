@@ -778,11 +778,9 @@ class MonoMusicViewModel(
     // ------------------------------------------------------------------
 
     suspend fun resyncLocalLibrary(
-        includeLocal: Boolean,
-        folders: Set<String>,
         onScanProgress: (Float) -> Unit,
     ): LibraryRepository.SyncStats {
-        val stats = libraryRepository.sync(includeLocal, folders) { processed, total ->
+        val stats = libraryRepository.sync { processed, total ->
             onScanProgress(if (total > 0) processed.toFloat() / total else 1f)
         }
         refreshLibraryFromDatabase()
@@ -919,10 +917,7 @@ class MonoMusicViewModel(
     init {
         viewModelScope.launch {
             try {
-                libraryRepository.sync(
-                    includeLocal = app.settingsManager.includeLocalMusic.value,
-                    folders = app.settingsManager.localMusicFolders.value,
-                )
+                libraryRepository.sync()
             } catch (_: Exception) {
             }
 

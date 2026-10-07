@@ -47,6 +47,16 @@ class MonoMusic : Application() {
         YouTubePrecacheManager(this)
     }
 
+    /**
+     * Bumped after every library sync, including ones started from outside the UI
+     * (e.g. an agent's rescan command), so screens know to reload.
+     */
+    val libraryVersion = kotlinx.coroutines.flow.MutableStateFlow(0)
+
+    fun notifyLibraryChanged() {
+        libraryVersion.value += 1
+    }
+
     /** Which resolver produced the current stream URL; shown on Now Playing. */
     val streamResolverLabel = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 

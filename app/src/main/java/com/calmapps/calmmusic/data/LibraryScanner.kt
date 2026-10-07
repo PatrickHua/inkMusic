@@ -3,19 +3,22 @@ package com.calmapps.calmmusic.data
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import androidx.core.net.toUri
-import androidx.documentfile.provider.DocumentFile
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.TagOptionSingleton
 import java.io.File
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import java.io.FileOutputStream
 import java.security.MessageDigest
 
 /**
- * Builds the local-backed part of the library: every audio file in the
- * MediaStore downloads folder plus the user's SAF folders becomes a [Song]
- * with its [Song.localUri] set.
+ * Builds the local-backed part of the library: every audio file under the
+ * `songs/` folder of each inkMusic root ([InkStorage]) becomes a [Song] with
+ * its [Song.localUri] set to a `file://` uri.
  *
  * Identity: a "monomusic-yt" tag embedded at download time makes a file keep
  * its YouTube id across database loss or reinstalls; files without one get a
@@ -45,12 +48,10 @@ object LibraryScanner {
      */
     suspend fun scan(
         context: Context,
-        folderUris: Set<String>,
         existing: List<Song>,
         onProgress: suspend (processed: Int, total: Int) -> Unit = { _, _ -> },
     ): List<Song> {
-        val candidates = (mediaStoreCandidates(context) + safCandidates(context, folderUris))
-            .distinctBy { it.uri.toString() }
+        val candidates = fileCandidates(context)
 
         val existingByUri = existing.filter { it.localUri != null }.associateBy { it.localUri!! }
         val result = mutableListOf<Song>()
@@ -74,43 +75,31 @@ object LibraryScanner {
         return result
     }
 
-    private fun mediaStoreCandidates(context: Context): List<Candidate> =
-        MediaStoreSongs.queryAll(context)
-            .filter { it.displayName.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS }
-            .map { Candidate(it.uri, it.displayName, it.sizeBytes, it.lastModifiedMillis) }
-
-    private fun safCandidates(context: Context, folderUris: Set<String>): List<Candidate> {
+    /** Plain file walk: one stat per file, no content resolver round trips. */
+    private fun fileCandidates(context: Context): List<Candidate> {
         val candidates = mutableListOf<Candidate>()
-        for (uriString in folderUris) {
-            val treeUri = try {
-                uriString.toUri()
-            } catch (_: Exception) {
-                continue
-            }
-            val root = DocumentFile.fromTreeUri(context, treeUri) ?: continue
-            val stack = ArrayDeque<DocumentFile>()
-            stack.add(root)
-            while (stack.isNotEmpty()) {
-                val dir = stack.removeFirst()
-                val children = try {
-                    dir.listFiles().toList()
-                } catch (_: Exception) {
-                    emptyList()
-                }
-                for (child in children) {
-                    if (child.isDirectory) {
-                        // Downloads are indexed via MediaStore; scanning them here
-                        // would duplicate every downloaded song.
-                        if (child.name == MediaStoreSongs.SUBFOLDER) continue
-                        stack.add(child)
-                    } else if (child.isFile) {
-                        val name = child.name ?: continue
-                        if (name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS) {
-                            candidates += Candidate(child.uri, name, child.length(), child.lastModified())
-                        }
+        for (songsDir in InkStorage.songsDirs(context)) {
+            Files.walkFileTree(songsDir.toPath(), object : SimpleFileVisitor<Path>() {
+                override fun preVisitDirectory(dir: Path, attrs: BasicFileAttributes): FileVisitResult =
+                    if (dir.fileName.toString().startsWith(".")) FileVisitResult.SKIP_SUBTREE
+                    else FileVisitResult.CONTINUE
+
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    val name = file.fileName.toString()
+                    if (attrs.isRegularFile && name.substringAfterLast('.', "").lowercase() in AUDIO_EXTENSIONS) {
+                        candidates += Candidate(
+                            Uri.fromFile(file.toFile()),
+                            name,
+                            attrs.size(),
+                            attrs.lastModifiedTime().toMillis(),
+                        )
                     }
+                    return FileVisitResult.CONTINUE
                 }
-            }
+
+                override fun visitFileFailed(file: Path, exc: java.io.IOException): FileVisitResult =
+                    FileVisitResult.CONTINUE
+            })
         }
         return candidates
     }
@@ -179,7 +168,7 @@ object LibraryScanner {
     private fun extractMetadata(context: Context, uri: Uri): LocalMetadata {
         val retriever = MediaMetadataRetriever()
         var meta = try {
-            retriever.setDataSource(context, uri)
+            if (uri.scheme == "file") retriever.setDataSource(uri.path) else retriever.setDataSource(context, uri)
             LocalMetadata(
                 title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE).normalizeTagString(),
                 artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST).normalizeTagString(),
@@ -205,7 +194,9 @@ object LibraryScanner {
 
         // Deep read: the embedded video id (and album artist when the platform
         // retriever missed it) only exist in tags jaudiotagger can reach.
-        val tempFile = copyUriToTempFile(context, uri)
+        // jaudiotagger needs a real file: use ours directly, or copy content uris.
+        val isFile = uri.scheme == "file"
+        val tempFile = if (isFile) uri.path?.let(::File) else copyUriToTempFile(context, uri)
         if (tempFile != null) {
             try {
                 TagOptionSingleton.getInstance().isAndroid = true
@@ -229,7 +220,7 @@ object LibraryScanner {
             } catch (_: Exception) {
                 // Ignore deep scan failures
             } finally {
-                tempFile.delete()
+                if (!isFile) tempFile.delete()
             }
         }
 
