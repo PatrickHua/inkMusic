@@ -46,22 +46,31 @@ class LrcLibClient(
         // Title alone finds songs filed under another spelling of the artist
         // (鄧麗君 / 邓丽君 / Teresa Teng); only a matching duration makes that safe.
         if (match == null && durationMs != null && durationMs > 0) {
-            match = best(search("track_name" to cleanTitle), cleanTitle, "", durationMs)
+            match = best(search("track_name" to cleanTitle), cleanTitle, "", durationMs, exactTitle = true)
         }
         match ?: return null
 
+        // Record which entry matched so a wrong match can be traced and removed.
+        val source = "$SOURCE #${match.optLong("id")}: ${match.optString("artistName")} - ${match.optString("trackName")}"
         if (match.optBoolean("instrumental")) {
-            return Lyrics(emptyList(), synced = false, instrumental = true, source = SOURCE)
+            return Lyrics(emptyList(), synced = false, instrumental = true, source = source)
         }
         val synced = match.optString("syncedLyrics").takeIf { it.isNotBlank() && it != "null" }
         val plain = match.optString("plainLyrics").takeIf { it.isNotBlank() && it != "null" }
         val text = synced ?: plain ?: return null
-        return Lyrics.parseLrc(text).copy(source = SOURCE)
+        return Lyrics.parseLrc(text).copy(source = source)
     }
 
-    private fun best(candidates: List<JSONObject>, title: String, artist: String, durationMs: Long?): JSONObject? =
+    private fun best(
+        candidates: List<JSONObject>,
+        title: String,
+        artist: String,
+        durationMs: Long?,
+        exactTitle: Boolean = false,
+    ): JSONObject? =
         candidates
             .filter { isGoodMatch(it, title, artist, durationMs) }
+            .filter { !exactTitle || normalize(it.optString("trackName")) == normalize(title) }
             // Prefer synced lyrics, then the closest duration.
             .sortedWith(
                 compareBy<JSONObject>(
@@ -88,6 +97,10 @@ class LrcLibClient(
     }
 
     private fun isGoodMatch(candidate: JSONObject, title: String, artist: String, durationMs: Long?): Boolean {
+        // LRCLIB searches are fuzzy; the titles must at least overlap.
+        val wanted = normalize(title)
+        val got = normalize(candidate.optString("trackName"))
+        if (wanted.isEmpty() || got.isEmpty() || !(got.contains(wanted) || wanted.contains(got))) return false
         if (durationMs != null && durationMs > 0) {
             // Same recording: durations within a few seconds.
             return durationGap(candidate, durationMs) <= 3_000
