@@ -9,7 +9,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.calmapps.calmmusic"
+        applicationId = "io.github.patrickhua.kmusic"
         // MediaStore RELATIVE_PATH/IS_PENDING (download storage) need API 29.
         minSdk = 29
         targetSdk = 35
