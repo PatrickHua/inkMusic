@@ -9,7 +9,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.patrickhua.kmusic"
+        applicationId = "io.github.patrickhua.inkmusic"
         // MediaStore RELATIVE_PATH/IS_PENDING (download storage) need API 29.
         minSdk = 29
         targetSdk = 35
