@@ -51,7 +51,8 @@ fun ArtistDetailsScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    val tabOptions = listOf("Albums", "Songs")
+    // Songs first: it is the tab people actually use.
+    val tabOptions = listOf("Songs", "Albums")
 
     val playbackState by viewModel.playbackState.collectAsState()
     val currentSongId = playbackState.currentSongId
@@ -69,7 +70,7 @@ fun ArtistDetailsScreen(
             val content = viewModel.getArtistContent(artistId)
             songs = content.songs
             albums = content.albums
-            if (albums.isEmpty() && songs.isNotEmpty()) selectedTab = 1
+            if (songs.isEmpty() && albums.isNotEmpty()) selectedTab = 1
         } catch (e: Exception) {
             errorMessage = e.message ?: "Failed to load artist"
         } finally {
@@ -129,7 +130,7 @@ fun ArtistDetailsScreen(
                         }
                     }
 
-                    if (selectedTab == 0) {
+                    if (selectedTab == 1) {
                         // Albums tab
                         LazyColumnMMD(
                             contentPadding = PaddingValues(16.dp),
