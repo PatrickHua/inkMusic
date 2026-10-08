@@ -91,16 +91,26 @@ object PlaylistFiles {
         )
     }
 
-    private fun resolveFile(context: Context, playlistFile: File, location: String): File? {
+    /**
+     * The library song an entry's path points at. Candidate paths are normalized as
+     * strings and looked up in [byLocalPath] first, so a playlist of thousands of
+     * songs costs no file system calls; only unknown paths fall back to the disk.
+     */
+    private fun resolveSong(playlistFile: File, location: String, byLocalPath: Map<String, Song>): Song? {
         val path = if (location.startsWith("file://")) Uri.parse(location).path ?: return null else location
         val direct = File(path)
-        if (direct.isAbsolute) return direct.takeIf { it.isFile }
-        val root = playlistFile.parentFile?.parentFile
-        return listOfNotNull(
-            playlistFile.parentFile?.let { File(it, path) },
-            root?.let { File(it, path) },
-            root?.let { File(File(it, InkStorage.SONGS_DIR), path) },
-        ).map { it.canonicalFile }.firstOrNull { it.isFile }
+        val candidates = if (direct.isAbsolute) {
+            listOf(direct)
+        } else {
+            val root = playlistFile.parentFile?.parentFile
+            listOfNotNull(
+                playlistFile.parentFile?.let { File(it, path) },
+                root?.let { File(it, path) },
+                root?.let { File(File(it, InkStorage.SONGS_DIR), path) },
+            )
+        }
+        candidates.firstNotNullOfOrNull { byLocalPath[it.normalize().path] }?.let { return it }
+        return candidates.map { it.canonicalFile }.firstOrNull { it.isFile }?.let { byLocalPath[it.path] }
     }
 
     private fun videoIdOf(location: String): String? {
@@ -122,15 +132,14 @@ object PlaylistFiles {
 
         val songs = songDao.getAll()
         val byLocalPath = songs.mapNotNull { song ->
-            song.localUri?.let { Uri.parse(it).path }?.let { it to song }
+            song.localUri?.let { Uri.parse(it).path }?.let { File(it).normalize().path to song }
         }.toMap()
         val byId = songs.associateBy { it.id }
 
         for (playlist in parsed) {
             val songIds = LinkedHashSet<String>()
             for (entry in playlist.entries) {
-                val fromPath = resolveFile(context, playlist.file, entry.location)
-                    ?.let { byLocalPath[it.absolutePath] }
+                val fromPath = resolveSong(playlist.file, entry.location, byLocalPath)
                 val songId = fromPath?.id
                     ?: entry.songId?.takeIf { it in byId }
                     ?: videoIdOf(entry.location)?.also { videoId ->
@@ -152,10 +161,14 @@ object PlaylistFiles {
             } else if (old.name != playlist.name || old.description != playlist.description) {
                 playlistDao.updatePlaylistMetadata(playlist.id, playlist.name, playlist.description)
             }
-            playlistDao.deleteTracksForPlaylist(playlist.id)
-            playlistDao.upsertTracks(
-                songIds.mapIndexed { index, songId -> PlaylistTrackEntity(playlist.id, songId, index) },
-            )
+            // Most scans change nothing; skip rewriting thousands of rows then.
+            val current = if (old == null) emptyList() else playlistDao.getSongsForPlaylist(playlist.id).map { it.id }
+            if (current != songIds.toList()) {
+                playlistDao.deleteTracksForPlaylist(playlist.id)
+                playlistDao.upsertTracks(
+                    songIds.mapIndexed { index, songId -> PlaylistTrackEntity(playlist.id, songId, index) },
+                )
+            }
         }
 
         val onDisk = parsed.mapTo(mutableSetOf()) { it.id }

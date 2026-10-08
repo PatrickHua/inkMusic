@@ -916,11 +916,8 @@ class MonoMusicViewModel(
 
     init {
         viewModelScope.launch {
-            try {
-                libraryRepository.sync()
-            } catch (_: Exception) {
-            }
-
+            // Show the indexed library right away; the scan below catches up with
+            // disk changes and reloads the lists when it is done.
             refreshLibraryFromDatabase()
 
             // Restore the last queue without starting playback.
@@ -957,11 +954,13 @@ class MonoMusicViewModel(
             _isLoadingSongs.value = false
             _isLoadingAlbums.value = false
 
-            // Give pre-rewrite downloads their YouTube identity back.
             try {
-                if (libraryRepository.identifyLocalSongs() > 0) refreshLibraryFromDatabase()
+                libraryRepository.sync()
+                refreshLibraryFromDatabase()
             } catch (_: Exception) {
             }
+            // No identifyLocalSongs() here: inkMusic's library lives in files the
+            // user owns, and matching them against YouTube rewrote their tags.
         }
     }
 
