@@ -22,9 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.calmapps.calmmusic.YouTubeDownloadStatus
-import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 
 @Composable
@@ -45,7 +43,7 @@ fun DownloadsScreen(
             )
         }
     } else {
-        LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
+        InkLazyColumn(contentPadding = PaddingValues(16.dp)) {
             items(downloads.size) { index ->
                 val status = downloads[index]
                 DownloadItem(

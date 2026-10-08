@@ -19,14 +19,14 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Shuffle
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -38,7 +38,6 @@ import com.calmapps.calmmusic.PlaylistsViewModel
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
 import com.mudita.mmd.components.checkbox.CheckboxMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 import kotlinx.coroutines.launch
 
@@ -158,7 +157,7 @@ fun PlaylistDetailsScreen(
             }
 
             else -> {
-                LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
+                InkLazyColumn(contentPadding = PaddingValues(16.dp)) {
                     items(songs.size) { index ->
                         val song = songs[index]
                         val isLast = song == songs.lastOrNull()

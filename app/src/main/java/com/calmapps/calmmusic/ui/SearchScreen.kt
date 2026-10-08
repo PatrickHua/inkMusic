@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.tabs.PrimaryTabRowMMD
 import com.mudita.mmd.components.tabs.TabMMD
 import com.mudita.mmd.components.text.TextMMD
@@ -69,7 +68,7 @@ fun SearchScreen(
                     )
                 }
 
-                LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
+                InkLazyColumn(contentPadding = PaddingValues(16.dp)) {
                     if (isSearching) {
                         item {
                             TextMMD(text = "Searching...")

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,8 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.text.TextMMD
 
 /** UI model for displaying albums in the library. */
@@ -97,17 +96,23 @@ fun AlbumsScreen(
 
             else -> {
                 val lastAlbumId = albums.lastOrNull()?.id
-                LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
-                    items(
-                        items = albums,
-                        key = { it.id },
-                    ) { album ->
-                        val isLast = album.id == lastAlbumId
-                        AlbumItem(
-                            album = album,
-                            onClick = { onAlbumClick(album) },
-                            showDivider = !isLast,
-                        )
+                val listState = rememberLazyListState()
+                AlphabetIndexed(items = albums, label = { it.title }, state = listState) { listModifier ->
+                    InkLazyColumn(
+                        modifier = listModifier,
+                        state = listState,
+                        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
+                    ) {
+                        items(
+                            items = albums,
+                            key = { it.id },
+                        ) { album ->
+                            AlbumItem(
+                                album = album,
+                                onClick = { onAlbumClick(album) },
+                                showDivider = album.id != lastAlbumId,
+                            )
+                        }
                     }
                 }
             }

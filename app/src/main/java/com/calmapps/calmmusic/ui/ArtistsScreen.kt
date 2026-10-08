@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -20,9 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import androidx.compose.foundation.lazy.LazyColumn
-import com.mudita.mmd.components.lazy.LazyDefaultsMMD
 import com.mudita.mmd.components.text.TextMMD
 
 /** Simple UI model for distinct artists in the library. */
@@ -97,28 +93,23 @@ fun ArtistsScreen(
             else -> {
                 val lastArtistId = artists.lastOrNull()?.id
                 val listState = rememberLazyListState()
-                val (letters, firstIndexOf) = rememberLetterIndex(artists) { it.name }
-                Row(modifier = Modifier.fillMaxSize()) {
-                    // Plain LazyColumn: the A–Z strip replaces LazyColumnMMD's scrollbar.
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
+                AlphabetIndexed(items = artists, label = { it.name }, state = listState) { listModifier ->
+                    InkLazyColumn(
+                        modifier = listModifier,
                         state = listState,
-                        flingBehavior = LazyDefaultsMMD.flignBehavior,
                         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
                     ) {
                         items(
                             items = artists,
                             key = { it.id },
                         ) { artist ->
-                            val isLast = artist.id == lastArtistId
                             ArtistItem(
                                 artist = artist,
                                 onClick = { onArtistClick(artist) },
-                                showDivider = !isLast,
+                                showDivider = artist.id != lastArtistId,
                             )
                         }
                     }
-                    AlphabetIndex(letters = letters, firstIndexOf = firstIndexOf, listState = listState)
                 }
             }
         }

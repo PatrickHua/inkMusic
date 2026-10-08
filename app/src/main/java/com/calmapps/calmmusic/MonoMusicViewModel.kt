@@ -23,7 +23,6 @@ import com.calmapps.calmmusic.data.Song
 import com.calmapps.calmmusic.ui.AlbumUiModel
 import com.calmapps.calmmusic.ui.ArtistUiModel
 import com.calmapps.calmmusic.ui.SortKeys
-import com.calmapps.calmmusic.ui.PlaylistUiModel
 import com.calmapps.calmmusic.ui.RepeatMode
 import com.calmapps.calmmusic.ui.SongUiModel
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +34,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 
 /**
  * Owns the library state and the playback queue. Playback itself lives in the
@@ -481,7 +479,7 @@ class MonoMusicViewModel(
                     releaseYear = group.mapNotNull { it.releaseYear }.maxOrNull(),
                 )
             }
-            .sortedBy { it.title.lowercase() }
+            .sortedBy { SortKeys.of(it.title) }
 
     /**
      * Artists for the Artists tab. Songs in the Sleep, ASMR, Meditation, and
@@ -664,7 +662,8 @@ class MonoMusicViewModel(
         withContext(Dispatchers.IO) {
             val songs = songDao.getByArtistKey(artistId)
             ArtistContent(
-                songs = songs.map { it.toUiModel() },
+                // A–Z, to match the letter strip; the Albums tab keeps album order.
+                songs = songs.sortedBy { SortKeys.of(it.title) }.map { it.toUiModel() },
                 albums = deriveAlbums(songs).sortedWith(
                     compareByDescending<AlbumUiModel> { it.releaseYear ?: Int.MIN_VALUE }
                         .thenBy { it.title },

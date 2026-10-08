@@ -1,10 +1,8 @@
 package com.calmapps.calmmusic
 
-import android.Manifest
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import com.calmapps.calmmusic.data.InkStorage
@@ -16,8 +14,6 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,16 +45,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -93,6 +89,7 @@ import com.calmapps.calmmusic.ui.ArtistDetailsScreen
 import com.calmapps.calmmusic.ui.ArtistsScreen
 import com.calmapps.calmmusic.ui.DownloadsScreen
 import com.calmapps.calmmusic.ui.MoreScreen
+import com.calmapps.calmmusic.ui.InkLazyColumn
 import com.calmapps.calmmusic.ui.NowPlayingScreen
 import com.calmapps.calmmusic.ui.PermissionsOnboardingScreen
 import com.calmapps.calmmusic.ui.PlaylistAddSongsScreen
@@ -113,7 +110,6 @@ import com.mudita.mmd.components.bottom_sheet.SheetStateMMD
 import com.mudita.mmd.components.bottom_sheet.rememberModalBottomSheetMMDState
 import com.mudita.mmd.components.buttons.OutlinedButtonMMD
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
 import com.mudita.mmd.components.snackbar.SnackbarDurationMMD
 import com.mudita.mmd.components.snackbar.SnackbarHostMMD
 import com.mudita.mmd.components.snackbar.SnackbarHostStateMMD
@@ -1495,7 +1491,7 @@ fun MonoMusic(app: MonoMusic) {
                         Spacer(modifier = Modifier.height(8.dp))
                     } else {
                         val lastPlaylistId = libraryPlaylists.lastOrNull()?.id
-                        LazyColumnMMD(
+                        InkLazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = screenHeight * 0.6f),
