@@ -70,18 +70,25 @@ def fetch(root, item):
     return "ok", item
 
 
+def paced(result, pause):
+    if pause and result[0] == "ok":
+        time.sleep(pause)
+    return result
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("plan")
     ap.add_argument("root")
     ap.add_argument("--workers", type=int, default=4)
+    ap.add_argument("--pause", type=float, default=0, help="seconds to wait after each download (eases YouTube's bot check)")
     args = ap.parse_args()
 
     plan = json.load(open(args.plan))
     counts = {"ok": 0, "skip": 0, "fail": 0}
     failures = []
     with concurrent.futures.ThreadPoolExecutor(args.workers) as pool:
-        for i, (status, item) in enumerate(pool.map(lambda it: fetch(args.root, it), plan), 1):
+        for i, (status, item) in enumerate(pool.map(lambda it: paced(fetch(args.root, it), args.pause), plan), 1):
             counts[status] += 1
             if status == "fail":
                 failures.append(item)

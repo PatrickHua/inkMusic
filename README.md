@@ -54,7 +54,8 @@ Python scripts for filling the library from a Mac (`python3 -m venv tools/.venv 
 
 - `plan_artists.py library.json plan.json` – each main artist's most popular songs (Deezer play counts, then YouTube Music) that the library lacks.
 - `plan_categories.py library.json plan.json` – more tracks for Study, Sleep, ASMR, Meditation, Classical, and Instrumental, in the style each already has.
-- `fetch.py plan.json ~/Music/inkMusic-staging` – download and tag a plan into a staging copy of `inkMusic/`.
+- `plan_discography.py library.json plan.json --artist "Taylor Swift"` – an artist's full discography (albums and singles, minus live albums, compilations, and songs already present); without `--artist`, every artist with 15+ songs.
+- `fetch.py plan.json ~/Music/inkMusic-staging` – download and tag a plan into a staging copy of `inkMusic/` (`--pause` slows it down if YouTube starts asking to confirm you're not a bot).
 - `make_playlists.py library.json out/` – category playlists plus 华语, J-Pop, English Pop, and Oldies.
 - `sync.sh` – push the staging folder to the phone, rescan, and fetch lyrics.
 
