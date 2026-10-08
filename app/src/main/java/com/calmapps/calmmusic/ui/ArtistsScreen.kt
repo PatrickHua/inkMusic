@@ -4,11 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -92,24 +95,34 @@ fun ArtistsScreen(
 
             else -> {
                 val lastArtistId = artists.lastOrNull()?.id
-                LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
-                    items(
-                        items = artists,
-                        key = { it.id },
-                    ) { artist ->
-                        val isLast = artist.id == lastArtistId
-                        ArtistItem(
-                            artist = artist,
-                            onClick = { onArtistClick(artist) },
-                            showDivider = !isLast,
-                        )
+                val listState = rememberLazyListState()
+                val (letters, firstIndexOf) = rememberLetterIndex(artists) { it.name }
+                Row(modifier = Modifier.fillMaxSize()) {
+                    LazyColumnMMD(
+                        modifier = Modifier.weight(1f),
+                        state = listState,
+                        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
+                    ) {
+                        items(
+                            items = artists,
+                            key = { it.id },
+                        ) { artist ->
+                            val isLast = artist.id == lastArtistId
+                            ArtistItem(
+                                artist = artist,
+                                onClick = { onArtistClick(artist) },
+                                showDivider = !isLast,
+                            )
+                        }
                     }
+                    AlphabetIndex(letters = letters, firstIndexOf = firstIndexOf, listState = listState)
                 }
             }
         }
     }
 }
 
+/** One line per artist (name and song count), so a screen shows about twice as many. */
 @Composable
 fun ArtistItem(
     artist: ArtistUiModel,
@@ -119,31 +132,30 @@ fun ArtistItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(bottom = 8.dp),
+            .clickable(onClick = onClick),
     ) {
-        TextMMD(
-            text = artist.name,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        val songLabel = if (artist.songCount == 1) "1 song" else "${artist.songCount} songs"
-        val albumLabel = if (artist.albumCount == 1) "1 album" else "${artist.albumCount} albums"
-        val subtitle = "$songLabel • $albumLabel"
-
-        Spacer(modifier = Modifier.height(4.dp))
-        TextMMD(
-            text = subtitle,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextMMD(
+                text = artist.name,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            TextMMD(
+                text = artist.songCount.toString(),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+            )
+        }
 
         if (showDivider) {
             DashedDivider(thickness = 1.dp)

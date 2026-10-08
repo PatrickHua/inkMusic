@@ -22,6 +22,7 @@ import com.calmapps.calmmusic.data.NowPlayingStorage
 import com.calmapps.calmmusic.data.Song
 import com.calmapps.calmmusic.ui.AlbumUiModel
 import com.calmapps.calmmusic.ui.ArtistUiModel
+import com.calmapps.calmmusic.ui.SortKeys
 import com.calmapps.calmmusic.ui.PlaylistUiModel
 import com.calmapps.calmmusic.ui.RepeatMode
 import com.calmapps.calmmusic.ui.SongUiModel
@@ -423,9 +424,11 @@ class MonoMusicViewModel(
     suspend fun refreshLibraryFromDatabase() {
         try {
             val songs = withContext(Dispatchers.IO) { songDao.getAll() }
-            _librarySongs.value = songs.map { it.toUiModel() }
-            _libraryAlbums.value = deriveAlbums(songs)
-            _libraryArtists.value = deriveArtists(songs)
+            _librarySongs.value = withContext(Dispatchers.Default) {
+                songs.sortedBy { SortKeys.of(it.title) }.map { it.toUiModel() }
+            }
+            _libraryAlbums.value = withContext(Dispatchers.Default) { deriveAlbums(songs) }
+            _libraryArtists.value = withContext(Dispatchers.Default) { deriveArtists(songs) }
             _libraryRefreshTrigger.value += 1
             refreshQueueFromLibrary()
         } catch (_: Exception) {
@@ -480,8 +483,14 @@ class MonoMusicViewModel(
             }
             .sortedBy { it.title.lowercase() }
 
+    /**
+     * Artists for the Artists tab. Songs in the Sleep, ASMR, Meditation, and
+     * Classical folders are left out: their "artists" are rain-sound channels,
+     * orchestras, and teachers that would bury the artists people follow, and
+     * those folders have their own playlists.
+     */
     private fun deriveArtists(songs: List<Song>): List<ArtistUiModel> =
-        songs.filter { it.artistKey != null }
+        songs.filter { it.artistKey != null && !isInBackgroundCategory(it) }
             .groupBy { it.artistKey!! }
             .map { (artistKey, group) ->
                 ArtistUiModel(
@@ -491,7 +500,10 @@ class MonoMusicViewModel(
                     albumCount = group.mapNotNull { it.albumKey }.distinct().size,
                 )
             }
-            .sortedBy { it.name.lowercase() }
+            .sortedBy { SortKeys.of(it.name) }
+
+    private fun isInBackgroundCategory(song: Song): Boolean =
+        song.localUri?.let { BACKGROUND_CATEGORY.containsMatchIn(it) } == true
 
     suspend fun getAlbumSongs(albumId: String): List<SongUiModel> =
         withContext(Dispatchers.IO) {
@@ -991,3 +1003,5 @@ data class PlaybackState(
     val nowPlayingPositionMs: Long = 0L,
     val nowPlayingDurationMs: Long = 0L,
 )
+
+private val BACKGROUND_CATEGORY = Regex("""/inkMusic/songs/(Sleep|ASMR|Meditation|Classical)/""")

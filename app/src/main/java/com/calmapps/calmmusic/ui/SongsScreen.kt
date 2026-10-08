@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
 import com.mudita.mmd.components.lazy.LazyColumnMMD
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Row
 import com.mudita.mmd.components.text.TextMMD
 
 data class SongUiModel(
@@ -95,7 +97,14 @@ fun SongsScreen(
             }
 
             else -> {
-                LazyColumnMMD(contentPadding = PaddingValues(16.dp)) {
+                val listState = rememberLazyListState()
+                val (letters, firstIndexOf) = rememberLetterIndex(songs) { it.title }
+                Row(modifier = Modifier.fillMaxSize()) {
+                LazyColumnMMD(
+                    modifier = Modifier.weight(1f),
+                    state = listState,
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
+                ) {
                     items(
                         items = songs,
                         key = { it.id },
@@ -115,6 +124,8 @@ fun SongsScreen(
                         )
                     }
                 }
+                AlphabetIndex(letters = letters, firstIndexOf = firstIndexOf, listState = listState)
+                }
             }
         }
 
@@ -122,7 +133,8 @@ fun SongsScreen(
             FloatingActionButtonMMD(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(16.dp),
+                    // Clear of the A–Z strip.
+                    .padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 44.dp),
                 onClick = onShuffleClick,
             ) {
                 Icon(
