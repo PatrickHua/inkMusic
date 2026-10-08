@@ -3,6 +3,7 @@ package com.calmapps.calmmusic.ui
 import android.icu.text.Transliterator
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,8 +36,12 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The app's vertical list: Mudita's E-ink scrolling (no fling momentum) without
- * LazyColumnMMD's scrollbar, which long lists replace with [AlphabetIndexed].
+ * The app's vertical list, scrolled the way Mudita's LazyColumnMMD does it but
+ * without its scrollbar (long lists get [AlphabetIndexed] instead).
+ *
+ * Normal scrolling is off. Each swipe, however long, jumps the list [scrollStep]
+ * rows at once with no animation, so rows are replaced in place and the E-ink
+ * panel never draws the in-between frames that leave ghosting behind.
  */
 @Composable
 fun InkLazyColumn(
@@ -43,14 +49,31 @@ fun InkLazyColumn(
     state: LazyListState = rememberLazyListState(),
     contentPadding: PaddingValues = PaddingValues(0.dp),
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    scrollStep: Int = LazyDefaultsMMD.SCROLL_STEP,
     content: LazyListScope.() -> Unit,
 ) {
+    val scope = rememberCoroutineScope()
     LazyColumn(
-        modifier = modifier,
+        modifier = modifier.pointerInput(state, scrollStep) {
+            var jumped = false
+            detectVerticalDragGestures(
+                onDragEnd = { jumped = false },
+                onDragCancel = { jumped = false },
+            ) { _, dragAmount ->
+                if (jumped) return@detectVerticalDragGestures
+                jumped = true
+                val total = state.layoutInfo.totalItemsCount
+                if (total == 0) return@detectVerticalDragGestures
+                // Swiping up moves forward through the list.
+                val direction = if (dragAmount > 0) -1 else 1
+                val target = (state.firstVisibleItemIndex + direction * scrollStep).coerceIn(0, total - 1)
+                scope.launch { state.scrollToItem(target) }
+            }
+        },
         state = state,
         contentPadding = contentPadding,
         verticalArrangement = verticalArrangement,
-        flingBehavior = LazyDefaultsMMD.flignBehavior,
+        userScrollEnabled = false,
         content = content,
     )
 }
