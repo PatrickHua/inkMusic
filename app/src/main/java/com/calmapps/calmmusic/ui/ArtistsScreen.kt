@@ -21,7 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mudita.mmd.components.divider.HorizontalDividerMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
+import androidx.compose.foundation.lazy.LazyColumn
+import com.mudita.mmd.components.lazy.LazyDefaultsMMD
 import com.mudita.mmd.components.text.TextMMD
 
 /** Simple UI model for distinct artists in the library. */
@@ -98,9 +99,11 @@ fun ArtistsScreen(
                 val listState = rememberLazyListState()
                 val (letters, firstIndexOf) = rememberLetterIndex(artists) { it.name }
                 Row(modifier = Modifier.fillMaxSize()) {
-                    LazyColumnMMD(
+                    // Plain LazyColumn: the A–Z strip replaces LazyColumnMMD's scrollbar.
+                    LazyColumn(
                         modifier = Modifier.weight(1f),
                         state = listState,
+                        flingBehavior = LazyDefaultsMMD.flignBehavior,
                         contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 8.dp),
                     ) {
                         items(

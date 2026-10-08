@@ -14,7 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mudita.mmd.components.buttons.FloatingActionButtonMMD
-import com.mudita.mmd.components.lazy.LazyColumnMMD
+import androidx.compose.foundation.lazy.LazyColumn
+import com.mudita.mmd.components.lazy.LazyDefaultsMMD
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Row
 import com.mudita.mmd.components.text.TextMMD
@@ -100,9 +101,11 @@ fun SongsScreen(
                 val listState = rememberLazyListState()
                 val (letters, firstIndexOf) = rememberLetterIndex(songs) { it.title }
                 Row(modifier = Modifier.fillMaxSize()) {
-                LazyColumnMMD(
+                // Plain LazyColumn: the A–Z strip replaces LazyColumnMMD's scrollbar.
+                LazyColumn(
                     modifier = Modifier.weight(1f),
                     state = listState,
+                    flingBehavior = LazyDefaultsMMD.flignBehavior,
                     contentPadding = PaddingValues(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 8.dp),
                 ) {
                     items(
