@@ -19,7 +19,11 @@ from mutagen.mp4 import MP4
 
 
 def safe(name):
-    return re.sub(r'[\\/:*?"<>|]', "_", name).strip(" .")[:120] or "Untitled"
+    """A file name the phone's SD card (exFAT) accepts: no reserved characters,
+    emoji, or other symbols outside the Basic Multilingual Plane."""
+    name = re.sub(r'[\\/:*?"<>|]', "_", name)
+    name = "".join(ch for ch in name if ord(ch) <= 0xFFFF and ch not in "\ufe0f\u200d")
+    return re.sub(r"\s+", " ", name).strip(" .")[:120] or "Untitled"
 
 
 def target_for(root, item):
