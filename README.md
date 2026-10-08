@@ -48,6 +48,16 @@ adb shell cmd media_session dispatch play-pause   # also: next, previous
 
 Commands are accepted only from adb or the system (the provider requires the `DUMP` permission). They use a content provider rather than broadcasts because some MediaTek builds silently drop broadcasts to apps.
 
+## Tools for a computer (`tools/`)
+
+Python scripts for filling the library from a Mac (`python3 -m venv tools/.venv && tools/.venv/bin/pip install -r tools/requirements.txt`; also needs `yt-dlp`):
+
+- `plan_artists.py library.json plan.json` – each main artist's most popular songs (Deezer play counts, then YouTube Music) that the library lacks.
+- `plan_categories.py library.json plan.json` – more tracks for Study, Sleep, ASMR, Meditation, Classical, and Instrumental, in the style each already has.
+- `fetch.py plan.json ~/Music/inkMusic-staging` – download and tag a plan into a staging copy of `inkMusic/`.
+- `make_playlists.py library.json out/` – category playlists plus 华语, J-Pop, English Pop, and Oldies.
+- `sync.sh` – push the staging folder to the phone, rescan, and fetch lyrics.
+
 ## Building
 
 Needs JDK 17 and the Android SDK (platform 35). `./gradlew assembleDebug` builds a debug APK. `scripts/install-release.sh` builds a release signed with the key in `~/.android-keys/inkmusic-release.jks` (password from the macOS Keychain item `inkmusic-keystore`) and installs it over adb; without the key, release builds fall back to debug signing.
