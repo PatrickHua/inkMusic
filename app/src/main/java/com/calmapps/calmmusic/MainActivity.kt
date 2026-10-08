@@ -78,7 +78,6 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -90,6 +89,7 @@ import com.calmapps.calmmusic.ui.ArtistsScreen
 import com.calmapps.calmmusic.ui.DownloadsScreen
 import com.calmapps.calmmusic.ui.MoreScreen
 import com.calmapps.calmmusic.ui.InkLazyColumn
+import com.calmapps.calmmusic.ui.page
 import com.calmapps.calmmusic.ui.NowPlayingScreen
 import com.calmapps.calmmusic.ui.PermissionsOnboardingScreen
 import com.calmapps.calmmusic.ui.PlaylistAddSongsScreen
@@ -692,7 +692,7 @@ fun MonoMusic(app: MonoMusic) {
     }
 
     fun NavGraphBuilder.playlistsNavGraph() {
-        composable(Screen.Playlists.route) {
+        page(Screen.Playlists.route) {
             PlaylistsScreen(
                 playlists = libraryPlaylists,
                 isInEditMode = isPlaylistsEditMode,
@@ -716,7 +716,7 @@ fun MonoMusic(app: MonoMusic) {
             )
         }
 
-        composable(
+        page(
             route = "${Screen.PlaylistDetails.route}/{playlistId}",
             arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -766,7 +766,7 @@ fun MonoMusic(app: MonoMusic) {
                 onDeleteClick = onDelete,
             )
         }
-        composable(Screen.PlaylistAddSongs.route) {
+        page(Screen.PlaylistAddSongs.route) {
             var existingIds by remember { mutableStateOf(emptySet<String>()) }
             LaunchedEffect(selectedPlaylist?.id) {
                 val id = selectedPlaylist?.id
@@ -788,7 +788,7 @@ fun MonoMusic(app: MonoMusic) {
                 },
             )
         }
-        composable(Screen.PlaylistEdit.route) {
+        page(Screen.PlaylistEdit.route) {
             val editing = selectedPlaylist
             PlaylistEditScreen(
                 initialName = editing?.name ?: "",
@@ -1055,7 +1055,7 @@ fun MonoMusic(app: MonoMusic) {
             ) {
                 playlistsNavGraph()
 
-                composable(Screen.Artists.route) {
+                page(Screen.Artists.route) {
                     ArtistsScreen(
                         artists = libraryArtists,
                         isLoading = isLoadingSongs || isLoadingAlbums,
@@ -1074,7 +1074,7 @@ fun MonoMusic(app: MonoMusic) {
                         },
                     )
                 }
-                composable(Screen.Songs.route) {
+                page(Screen.Songs.route) {
                     SongsScreen(
                         songs = librarySongs,
                         isLoading = isLoadingSongs,
@@ -1101,7 +1101,7 @@ fun MonoMusic(app: MonoMusic) {
                         onOpenLocalSettingsClick = openLocalSettings,
                     )
                 }
-                composable(Screen.Albums.route) {
+                page(Screen.Albums.route) {
                     AlbumsScreen(
                         albums = libraryAlbums,
                         isLoading = isLoadingAlbums,
@@ -1118,7 +1118,7 @@ fun MonoMusic(app: MonoMusic) {
                         },
                     )
                 }
-                composable(Screen.Search.route) {
+                page(Screen.Search.route) {
                     SearchScreen(
                         isSearching = isSearching,
                         errorMessage = searchError,
@@ -1148,7 +1148,7 @@ fun MonoMusic(app: MonoMusic) {
                         librarySongIds = librarySongIds,
                     )
                 }
-                composable(Screen.AlbumDetails.route) {
+                page(Screen.AlbumDetails.route) {
                     AlbumDetailsScreen(
                         album = selectedAlbum,
                         viewModel = viewModel,
@@ -1171,7 +1171,7 @@ fun MonoMusic(app: MonoMusic) {
                         librarySongIds = librarySongIds,
                     )
                 }
-                composable(Screen.ArtistDetails.route) {
+                page(Screen.ArtistDetails.route) {
                     ArtistDetailsScreen(
                         artistId = selectedArtistId ?: libraryArtists.find { it.name == selectedArtist }?.id,
                         viewModel = viewModel,
@@ -1193,7 +1193,7 @@ fun MonoMusic(app: MonoMusic) {
                     )
                 }
 
-                composable(Screen.More.route) {
+                page(Screen.More.route) {
                     MoreScreen(
                         onNavigateToDownloads = {
                             navController.navigate(Screen.Downloads.route) {
@@ -1214,7 +1214,7 @@ fun MonoMusic(app: MonoMusic) {
                     )
                 }
 
-                composable(Screen.Radio.route) {
+                page(Screen.Radio.route) {
                     RadioScreen(
                         onNavigateBack = { navController.popBackStack() },
                         onPausePlayback = { viewModel.togglePlayback(localMediaController) },
@@ -1222,7 +1222,7 @@ fun MonoMusic(app: MonoMusic) {
                     )
                 }
 
-                composable(Screen.Downloads.route) {
+                page(Screen.Downloads.route) {
                     val downloads by app.youTubeDownloadManager.downloads.collectAsStateWithLifecycle()
 
                     DownloadsScreen(
@@ -1232,7 +1232,7 @@ fun MonoMusic(app: MonoMusic) {
                     )
                 }
 
-                composable(Screen.Settings.route) {
+                page(Screen.Settings.route) {
                     val context = LocalContext.current
                     val lifecycleOwner = LocalLifecycleOwner.current
 
